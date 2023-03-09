@@ -1,10 +1,16 @@
 # A simple calculator
 
+Here we demonstrate a simple calculator
+
+Python is used to perform calculate the sum of two integers
+
 ```python
 def calculate(a, b):
     return int(a) + int(b)
 ```
 
+This Vue component will allow the user to enter two numbers
+allows the user to submit values to be calculated.
 
 ```html
 <template component="app">
@@ -40,3 +46,4 @@ def calculate(a, b):
 </style>
 
 ```
+
