@@ -4,8 +4,12 @@ Here we demonstrate a simple calculator
 
 Python is used to perform calculate the sum of two integers
 
+To run this example: run `pybridge --examples calculator`
+
 ```python
 def calculate(a, b):
+    a = a if a else 0
+    b = b if b else 0
     return int(a) + int(b)
 ```
 
@@ -15,7 +19,8 @@ allows the user to submit values to be calculated.
 ```html
 <template component="app">
     <form @submit.prevent="calculate">
-        
+        <p>Enter 2 numbers and press calculate!</p>
+
         Calculator: 
         <input v-model="value1" size=4> +
         <input v-model="value2" size=4> 

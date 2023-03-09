@@ -244,6 +244,10 @@ import sys
 import os
 
 def main(args):
+    if args.example:
+        pybridge_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        args.path = os.path.join("%s/examples/%s" % (pybridge_dir, args.example))
+    
     if args.path:
         if not os.path.exists(args.path):
             print("Error: path %s does not exist" % args.path)
@@ -286,7 +290,8 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--port', type=int, help='Port to launch webserver on (default: random free port between 31000 and 32000)')
     parser.add_argument('--host', type=str, help='Host to bind webserver to (default: localhost)')
     parser.add_argument('--no-browser', action='store_true', help='Host to bind webserver to (default: localhost)')
-
+    parser.add_argument('--example', help="Launch specific example")
+    # @todo parser.add_argument('--examples', action='store_true', help="Launch (all) examples")
     args = parser.parse_args()
     print(args)
 
