@@ -14,6 +14,17 @@ More info:
 - [PHP-Bridge](https://github.com/j-angnoe/php-bridge), same idea, different backend
 - [Vue-Blocks](https://github.com/j-angnoe/vue-blocks) - more Vue, less building and compilation.
 
+# Installation
+clone this repo, put is somewhere and run cli/pybridge. You could add cli/pybridge to your $PATH.
+
+# Usage
+```
+pybridge [path?] [--port?] [--no-browser?] [-h|--help?]
+
+    by default, the current directory will be `served` on a port between 31000 and 33000
+    it will open this url in your browser automatically, unless you provide the option `--no-browser`
+```
+
 # Hello world example
 
 ```python
