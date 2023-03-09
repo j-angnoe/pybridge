@@ -1,0 +1,25 @@
+<template component="app" props="">
+    <div>
+        Daar gaan we:
+
+        variable: {{ xxx }}
+        <pre v-text="$data"></pre>
+    </div>
+    <style scoped>
+    </style>
+    <script>
+    return class vue {
+        xxx = "yyy"
+        data = null;
+        blabla = null;
+        doei = null;
+        async mounted() {
+            this.data = await api.index.hoi(1,2,3,4,5);
+            this.doei = await api.index.doei()
+            this.blabla = await api.another_module.bla();
+        }
+    }
+    </script>
+
+</template>
+

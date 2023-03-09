@@ -1,0 +1,17 @@
+{
+  "name": "pybridge",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "bin": {
+    "pybridge": "cli/pybridge"
+  },
+  "scripts": {
+    "pack": "zip -r pybridge.zip . --exclude pybridge.zip --exclude '**/__pycache__/**' -x .git"
+  },
+  "author": "",
+  "license": "ISC"
+}

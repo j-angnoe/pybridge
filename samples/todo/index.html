@@ -1,0 +1,84 @@
+<style>
+body { padding: 25px; }
+</style>
+
+<template component="app">
+    <div>
+        <h1>
+            Todo Application
+        </h1>
+        <hr>
+        <router-view></router-view>
+    </div>
+</template>
+
+<template url="/">
+    <div>
+        Overview ({{todos.length}})
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Todo</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tr v-for="todo in todos">
+                <td v-text="todo.title"></td>
+                <td v-text="todo.status"></td>
+            </tr>
+        </table>
+
+        <router-link to="/new">
+            Create new todo
+        </router-link>
+        <pre v-text="$data"></pre>
+
+    </div>
+    <style scoped>
+    </style>
+    <script>
+    return class vue {
+        todos = []
+        async mounted() {
+            this.todos = await api.get_todos()
+        }
+    }
+    </script>
+</template>
+
+<template url="/new">
+    <div>
+        <h3>Create a todo</h3>
+        <form @submit.prevent="save">
+            Title: <br>
+            <input v-model="form.title">
+            <br>
+
+            Status: <br>
+            <input v-model="form.status">
+
+            <br>
+
+            <button>Save</button>
+        </form>
+    </div>
+    <style scoped>
+    </style>
+    <script>
+    return class vue {
+        form = {
+            title: '',
+            status: 'todo'
+        }
+        async mounted() {
+            
+        }
+
+        async save() {
+            this.result = await api.create_todo(this.form)
+            this.$router.push('/');
+        }
+    }
+    </script>
+</template>

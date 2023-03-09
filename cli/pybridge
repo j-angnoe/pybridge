@@ -1,0 +1,295 @@
+#!/usr/bin/env python3
+
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import os
+import re 
+import json
+
+class PyBridgeServer(BaseHTTPRequestHandler):
+
+    def resolve_file(self, path, default = 'index.html'):
+        print("TRY PATH %s" % path)
+        cwd = os.getcwd()
+
+        if (re.match("/.+\..+$", path)):
+            try_path = os.getcwd() + "/" + path[1:]
+            if os.path.exists(try_path):
+                return try_path
+            return None
+        elif re.match("/[/]*$", path):
+            test_paths = [
+                f"{path}.html",
+                f"{path}.md",
+                f"{path}/index.html",
+                f"{path}/index.md"
+            ]
+
+            for t in test_paths:
+                if os.path.exists(f"{cwd}/{t}"):
+                    return f"{cwd}/{t}"
+                    
+            return None
+        else:
+            
+            return self.resolve_file(path.rstrip('/') + '/'  + default.lstrip('/'))
+        
+    def decorate_html(self, contents):
+        if not re.search("</body>", contents, re.IGNORECASE):
+            contents += "\n</body>"
+        
+        if not re.search("<body", contents, re.IGNORECASE):
+            contents = "<body>\n" + contents
+
+        if not re.search("</head>", contents, re.IGNORECASE):
+            contents = "</head>\n" + contents
+        
+        if not re.search("<head", contents, re.IGNORECASE):
+            contents = "<head>\n" + contents
+
+
+        if not re.search("<html", contents, re.IGNORECASE):
+            contents = "<html>\n" + contents
+            
+        if not re.search("<!doctype", contents, re.IGNORECASE):
+            contents = "<!doctype html>\n" + contents
+
+
+        if not re.search("<template.+?component=\"app\"", contents, re.IGNORECASE):
+            contents = re.sub("(<body[^>]*>)", r'\1\n' + """
+            <template component="app">
+                <router-view></router-view>
+            </template>
+            """, contents, re.IGNORECASE)
+
+        if not re.search("</app", contents, re.IGNORECASE):
+            contents = re.sub("(<body[^>]*>)", r'\1\n<app></app>', contents, re.IGNORECASE)
+
+        contents = re.sub("</head", """
+        <script>
+        window.api = new Proxy({}, {
+            get(obj, apiName) { 
+                var call = function(body) { 
+                    return fetch(document.location, {
+                        method: 'post',
+                        body: JSON.stringify(body)
+                    }).then(res => res.json())
+                }
+                var obj = function(...args) { 
+                    return call({
+                        rpc: [apiName],
+                        args: args
+                    })
+                }
+
+                return new Proxy(obj, {
+                    get(obj, method) {
+                        return function(...args) {
+                            return call({
+                                rpc: [apiName, method],
+                                args: args
+                            })
+                        }
+                    }
+                })
+            }
+        })
+        </script>
+        </head""", contents, re.IGNORECASE)
+
+
+        contents = re.sub("</head", """
+        <meta charset="utf-8">
+        <script src="https://unpkg.com/vue-blocks@0.4/dist/vue-blocks.js"></script>
+        <link rel="stylesheet" href="https://unpkg.com/bootstrap@4.5.3/dist/css/bootstrap.min.css">
+
+        </head""", contents, re.IGNORECASE)
+
+        return contents
+
+    def send_decorated_html(self, file):
+        contents = file.read().decode("utf-8")
+
+        contents = self.decorate_html(contents)
+
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+
+        self.wfile.write(contents.encode('utf-8'))
+
+    def parse_markdown(self, file):
+        in_block = False
+        block = None
+
+        for line in file:
+            line = line.decode('utf-8')
+            if line.startswith("```"):
+                if in_block:
+                    yield {
+                        'type': block['header'][3:].strip(),
+                        'content': block['content']
+                    }
+                    block = None
+                    in_block = False
+                else:
+                    in_block = True
+                    block = {'header': line, 'content' : []}
+            elif block:
+                block['content'].append(line)
+
+        
+    def send_markdown(self, file):
+
+        for block in self.parse_markdown(file):
+            if 'html' == block['type']:
+                self.send_response(200);
+                self.end_headers()
+                self.wfile.write(self.decorate_html(''.join(block['content'])).encode('utf-8'))
+                return            
+
+
+    def do_GET(self):
+        serve_file = self.resolve_file(self.path)
+
+        if serve_file:
+            # @todo: Prevent serving secret info... this needs more rigour
+            if re.search("(.py$|.env|\/\.)", serve_file):
+                self.send_response(403)
+                self.end_headers()
+                self.wfile.write("<h1>Forbidden</h1>")
+                return
+
+            with open(serve_file, 'rb') as file:
+                if '.html' in serve_file: 
+                    return self.send_decorated_html(file)
+                elif '.md' in serve_file:
+                    return self.send_markdown(file)
+                else:
+                    return self.wfile.write(file.read())        
+            
+        self.send_response(404)
+        self.end_headers()
+        self.wfile.write(b"<h1>404 Not Found</h1>")
+
+
+    def execute_rpc(self, command, code):
+        return
+
+    def do_POST(self):
+
+        read_length = length = int(self.headers['Content-Length'])
+        request_data = json.loads(self.rfile.read(read_length).decode('utf-8'))
+
+        request_rpc = request_data['rpc']
+        if len(request_rpc) == 1:
+            serve_file = self.resolve_file(self.path)
+        else:
+            serve_file = self.resolve_file(self.path, request_rpc[0] + '.py')
+
+        code = None
+
+        if serve_file:
+            py_file = os.path.splitext(serve_file)[0] + '.py'
+
+            if os.path.exists(py_file):
+                if "rpc" in request_data.keys():
+                    with open(py_file, 'rb') as py_code:
+                        code = {"source": py_file, "code" : py_code.read().decode('utf-8')}
+            elif ".md" in serve_file:
+                with open(serve_file, "rb") as md_file:
+                    for block in self.parse_markdown(md_file):
+                        if "python" == block['type']:
+                            code =  {"source": serve_file, "code": ''.join(block['content'])}
+
+
+        
+
+        if code:
+
+            try:
+                real_code = "def user_code():\n\t" + re.sub("\n", "\n\t", code['code'] + ("\nreturn %s" % request_data['rpc'][-1]))
+
+
+                sys.path.insert(2, os.path.dirname(code["source"]))
+
+                scope = {}
+                exec(compile(real_code, code['source'],'exec'), globals(), scope)                
+                result = scope.get('user_code')()(*request_data['args'])
+
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+
+                try: 
+                    json_result = json.dumps(result)
+                except:
+                    json_result = json.dumps(result.tolist())
+                
+                self.wfile.write(json_result.encode('utf-8'))
+            except Exception as e: 
+                print(e)
+                self.send_response(500)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(bytes("%s" % e, 'utf-8'))
+
+                raise e
+            return
+                        
+        self.send_response(404)
+        self.end_headers()
+        self.wfile.write(b"<h1>404 Not Found</h1>")
+
+import sys
+import os
+
+def main(args):
+    if args.path:
+        if not os.path.exists(args.path):
+            print("Error: path %s does not exist" % args.path)
+            sys.exit(1)
+        
+        os.chdir(args.path)
+
+
+    hostname = "localhost"
+    if args.port:
+        port = args.port
+    else:
+        import hashlib
+        # Determine hash based on location (cwd)
+        location_hash = hashlib.md5(os.getcwd().encode('utf-8')).hexdigest()
+
+        # Take the last 3 characters, this gives us 4^3 possibilities.
+        port = 31000 + int(location_hash[-3:], 16)
+
+    webServer = HTTPServer((hostname, port), PyBridgeServer)
+
+    server_address = f"http://{hostname}:{port}/"
+
+    print(f"Server started at {server_address}")
+
+    if not args.no_browser:
+        import webbrowser
+        webbrowser.open(server_address)
+
+    try:
+        webServer.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+if __name__ == "__main__":        
+    import argparse
+
+    parser = argparse.ArgumentParser('PyBridge - SPA/PoC utility with javascript/python bridge')
+    parser.add_argument('path', type=str, nargs='?', help='Path to serve')
+    parser.add_argument('-p', '--port', type=int, help='Port to launch webserver on (default: random free port between 31000 and 32000)')
+    parser.add_argument('--host', type=str, help='Host to bind webserver to (default: localhost)')
+    parser.add_argument('--no-browser', action='store_true', help='Host to bind webserver to (default: localhost)')
+
+    args = parser.parse_args()
+    print(args)
+
+    main(args)
+
+    
