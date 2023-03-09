@@ -54,7 +54,7 @@ def say_hello():
 You can `serve` a markdown file that contains these two blocks
 or write them to index.html and an index.py file. 
 
-# Vue (vue-blocks) is includes
+# Vue (vue-blocks) included
 
 For purposes that require more `interactivity`, vue-blocks is auto-included. Vue-blocks allows you to write many Vue SFC like components inside a single html document, thus allowing us to write not only SPA but SFA (Single File Application).
 
