@@ -1,46 +1,40 @@
-# De Calculator voor osman
+# A simple calculator
 
 ```python
-def berekenen(a, b):
+def calculate(a, b):
     return int(a) + int(b)
-    
 ```
 
 
 ```html
-
 <template component="app">
-    <div>
-        Hoe is het? {{ var1 }}
-
-        Waarde 1 <input v-model="waarde1"><br>
-        Waarde 2 <input v-model="waarde2"><br>
-        <button @click="berekenen">Bereken de shit</button>
-        <div v-if="antwoord">
-            <hr>
-            De som van deze dingen is {{ antwoord }}
-        </div>
-    </div>
+    <form @submit.prevent="calculate">
+        
+        Calculator: 
+        <input v-model="value1" size=4> +
+        <input v-model="value2" size=4> 
+        <span v-if="answer"> = {{ answer }}</span>
+        <button @click="calculate">Calculate</button>
+    </form>
     <script>
     return class vue {
-        var1 = 'hallo'
-        waarde1 = null;
-        waarde2 = null;
-        antwoord = null;
+        value1 = null;
+        value2 = null;
+        answer = null;
 
         mounted() { 
 
         }
 
-        async berekenen() {
-            this.antwoord = await api.berekenen(this.waarde1, this.waarde2)
+        async calculate() {
+            this.answer = await api.calculate(this.value1, this.value2)
         }
     }
     </script>
 </template>
     
 <style>
-    main {
+    body {
         padding: 25px;
     }
 </style>
